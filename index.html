@@ -53,8 +53,15 @@
 
         .pagination-disable {
             pointer-events: none;
-            background-color: gray;
-            color: white
+            background-color: #e1e1e1;
+            color: #23243f !important;
+        }
+        a{
+            color: #23243f !important;
+        }
+        .active #currentPage{
+            background: #23243fd4;
+            color: white !important;
         }
     </style>
 </head>
@@ -95,7 +102,8 @@
                     </tbody>
                     <tfoot class="">
                         <tr>
-                            <td colspan="8">
+                            <td colspan="6"></td>
+                            <td colspan="2">
                                 <ul class="pagination">
                                     <li class="page-item"><a class="page-link " href="#" id="finalPreviousPage"
                                             onclick="finalPreviousPage()">Previous</a>
@@ -119,30 +127,40 @@
     </div>
 
     <script>
+        // storing all stock data which recieved from csv file
         var stockData = [];
-        var pageSize = 10;
-        var pageNumber = 1;
-        var stockform = document.getElementById("stockform");
-        var csvfile = document.getElementById("csvfile");
+        var filterData = [];
+        var filterStatus = false;
+        var pageSize = 10; //by default 10records per page
+        var pageNumber = 1; // page number
+
+        var stockform = document.getElementById("stockform"); // to prevent form submission
+        var csvfile = document.getElementById("csvfile"); // to access the csv file
+
+        //Listening submission event to read csv file
         stockform.addEventListener("submit", function (e) {
             e.preventDefault();
-            console.log("form submitted");
-            const csvData = csvfile.files[0];
-            console.log(csvData);
+            
+            const csvData = csvfile.files[0]; // to get csv file which user imported
 
+            // using file reader getting data from csv file as text
             var fileReader = new FileReader();
             fileReader.onload = function (e) {
-                console.log(e.target);
                 var data = e.target.result;
+                //calling this function to convert as array
                 csvDataToArray(data);
             }
             fileReader.readAsText(csvData)
-        })
+        });
+
+        // this function helps to convert csv data to readable array
         function csvDataToArray(data) {
             const csvArray = data.split("\r\n")
-            var headers = csvArray.slice(0, 1)[0].split(",");
+            //from csvArray parsing headers and rows
+            var headers = csvArray[0].split(",");
             var rows = csvArray.slice(1);
-            console.log(headers);
+            
+            //Code to create table readable array using hedears and rows
             var tableData = [];
             rows.forEach(function (data, index) {
                 var rowValue = data.split(",");
@@ -153,14 +171,21 @@
                 tableData.push(obj)
             })
             console.log(tableData);
+
+            //Calling groupByName function to group the rows by Names
             stockData = groupByName(tableData, "name");
+            //To display into table body
             displayTable(stockData);
 
         }
 
-        function displayTable(tableData) {
+        //function to display table by recieving array
+        function displayTable(stockData) {
+
+            stockData = filterStatus ? filterData : stockData;
+
             var tablerow = "";
-            pagination(tableData, pageSize, pageNumber).forEach(function (data, index) {
+            pagination(stockData, pageSize, pageNumber).forEach(function (data, index) {
                 var rowstring = `<tr>
                     <td>${data.name}</td>
                     <td>${data.batch}</td>
@@ -172,30 +197,33 @@
                     <td>${data.exp}</td>
                 </tr>`
                 tablerow = tablerow.concat(rowstring);
-            })
-            paginationBar();
-            document.getElementById("stockrows").innerHTML = tablerow;
-            document.getElementById("currentPage").innerText = pageNumber;
-        }
-        function searchData() {
-            var searchValue = document.getElementById("searchbyname").value;
-            console.log(searchValue);
-            var filteredData = stockData.filter(function (value) {
-                return value.name.toLowerCase().includes(searchValue.toLowerCase());
             });
 
-            console.log(filteredData)
-            displayTable(filteredData);
+
+            paginationBar(); //setting pagination bar based on array value
+            //apending html code to table body
+            document.getElementById("stockrows").innerHTML = tablerow;
+            //apending current pageNumber in pagination bar
+            document.getElementById("currentPage").innerText = pageNumber;
         }
+ 
+        // function helps to groupby the array of object by given key
         function groupByName(array, groupBy) {
+
+            //groupby all the records as per name
             var groupByObj = array.reduce(function (initial, currentObj) {
-                const key = currentObj[groupBy];
+                const key = currentObj[groupBy]; //find name of the key
+
+                //if key is not present in the object, it adds []
                 if (!initial[key]) {
                     initial[key] = [];
                 }
+                // pushing related object into array
                 initial[key].push(currentObj);
                 return initial;
-            }, {})
+            }, {});
+
+            // code helps to build array as per given condition in the assessment
             var finalData = [];
             for (let i in groupByObj) {
                 var data = groupByObj[i].reduce(function (initial, current) {
@@ -211,6 +239,23 @@
             }
             return finalData;
         }
+
+        //function helps to search data by given name
+        function searchData() {
+            var searchValue = document.getElementById("searchbyname").value;
+
+            filterStatus = searchValue == '' ? false : true;
+            
+            //using array filter method we are filtering data which match with searchvalue
+            filterData = stockData.filter(function (value) {
+                return value.name.toLowerCase().includes(searchValue.toLowerCase());
+            });
+            //calling display function appending filtered data into Table
+            displayTable(filterData);
+            
+        }
+
+        // pagination() helps to get some part of array based on pageSize and pageNumber
         function pagination(array, pageSize, pageNumber) {
             return array.slice((pageNumber - 1) * pageSize, pageNumber * pageSize)
         }
@@ -223,16 +268,18 @@
             displayTable(stockData);
         }
         function finalPreviousPage() {
-
-            console.log("hi");
             pageNumber = 1;
             displayTable(stockData);
         }
         function finalNextPage() {
-            pageNumber = Math.round((stockData.length) / pageSize);
-            displayTable(stockData);
+            let stocksData = filterStatus ? filterData : stockData;
+            pageNumber = Math.round((stocksData.length) / pageSize);
+            displayTable(stocksData);
         }
+
+        //enable and disable pagination options based on which page user it is
         function paginationBar() {
+            let stocksData = filterStatus ? filterData : stockData;
             var finalNextPage = document.getElementById("finalNextPage");
             var finalPreviousPage = document.getElementById("finalPreviousPage");
             var previousPage = document.getElementById("previousPage");
@@ -249,13 +296,13 @@
             else {
                 finalPreviousPage.classList.remove("pagination-disable")
             }
-            if (stockData.length / pageSize < 2 || Math.round(stockData.length / pageSize) == pageNumber) {
+            if (stocksData.length / pageSize < 2 || Math.round(stocksData.length / pageSize) == pageNumber) {
                 nextPage.classList.add("pagination-disable");
             }
             else {
                 nextPage.classList.remove("pagination-disable")
             }
-            if (stockData.length / pageSize < 3 || Math.round(stockData.length / pageSize) == pageNumber) {
+            if (stocksData.length / pageSize < 3 || Math.round(stocksData.length / pageSize) == pageNumber) {
                 finalNextPage.classList.add("pagination-disable")
             }
             else {
